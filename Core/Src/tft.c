@@ -28,31 +28,14 @@ void PIN_OUTPUT (GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin)
 
 #define RD_ACTIVE  HAL_GPIO_WritePin(RD_PORT, RD_PIN, GPIO_PIN_RESET)
 #define RD_IDLE    HAL_GPIO_WritePin(RD_PORT, RD_PIN, GPIO_PIN_SET)
-#define RD_OUTPUT  PIN_OUTPUT(RD_PORT, RD_PIN)
 #define WR_ACTIVE  HAL_GPIO_WritePin(WR_PORT, WR_PIN, GPIO_PIN_RESET)
 #define WR_IDLE    HAL_GPIO_WritePin(WR_PORT, WR_PIN, GPIO_PIN_SET)
-#define WR_OUTPUT  PIN_OUTPUT(WR_PORT, WR_PIN)
 #define CD_COMMAND HAL_GPIO_WritePin(CD_PORT, CD_PIN, GPIO_PIN_RESET)
 #define CD_DATA    HAL_GPIO_WritePin(CD_PORT, CD_PIN, GPIO_PIN_SET)
-#define CD_OUTPUT  PIN_OUTPUT(CD_PORT, CD_PIN)
 #define CS_ACTIVE  HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_RESET)
 #define CS_IDLE    HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET)
-#define CS_OUTPUT  PIN_OUTPUT(CS_PORT, CS_PIN)
 #define RESET_ACTIVE  HAL_GPIO_WritePin(RESET_PORT, RESET_PIN, GPIO_PIN_RESET)
 #define RESET_IDLE    HAL_GPIO_WritePin(RESET_PORT, RESET_PIN, GPIO_PIN_SET)
-#define RESET_OUTPUT  PIN_OUTPUT(RESET_PORT, RESET_PIN)
-
-#define WR_ACTIVE2  {WR_ACTIVE; WR_ACTIVE;}
-#define WR_ACTIVE4  {WR_ACTIVE2; WR_ACTIVE2;}
-#define WR_ACTIVE8  {WR_ACTIVE4; WR_ACTIVE4;}
-#define RD_ACTIVE2  {RD_ACTIVE; RD_ACTIVE;}
-#define RD_ACTIVE4  {RD_ACTIVE2; RD_ACTIVE2;}
-#define RD_ACTIVE8  {RD_ACTIVE4; RD_ACTIVE4;}
-#define RD_ACTIVE16 {RD_ACTIVE8; RD_ACTIVE8;}
-#define WR_IDLE2  {WR_IDLE; WR_IDLE;}
-#define WR_IDLE4  {WR_IDLE2; WR_IDLE2;}
-#define RD_IDLE2  {RD_IDLE; RD_IDLE;}
-#define RD_IDLE4  {RD_IDLE2; RD_IDLE2;}
 
 #define WR_STROBE { WR_ACTIVE; WR_IDLE; }         //PWLW=TWRL=50ns
 #define RD_STROBE RD_IDLE, RD_ACTIVE, RD_ACTIVE, RD_ACTIVE   //PWLR=TRDL=150ns
@@ -62,7 +45,6 @@ void PIN_OUTPUT (GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin)
 #define READ_8(dst)   { RD_STROBE; READ_DELAY; dst = read_8(); RD_IDLE; RD_IDLE; } // read 250ns after RD_ACTIVE goes low
 #define READ_16(dst)  { uint8_t hi; READ_8(hi); READ_8(dst); dst |= (hi << 8); }
 
-#define CTL_INIT()   { RD_OUTPUT; WR_OUTPUT; CD_OUTPUT; CS_OUTPUT; RESET_OUTPUT; }
 #define WriteCmd(x)  { CD_COMMAND; write16(x); CD_DATA; }
 #define WriteData(x) { write16(x); }
 
@@ -88,10 +70,6 @@ void setReadDir (void);
 void setWriteDir (void);
 
 static uint8_t done_reset;
-
-static uint16_t color565_to_555(uint16_t color) {
-    return (color & 0xFFC0) | ((color & 0x1F) << 1) | ((color & 0x01));  //lose Green LSB, extend Blue LSB
-}
 
 static uint8_t color565_to_r(uint16_t color) {
     return ((color & 0xF800) >> 8);  // transform to rrrrrxxx
@@ -209,16 +187,6 @@ static void pushColors_any(uint16_t cmd, uint8_t * block, int16_t n, uint8_t fir
     CS_IDLE;
 }
 
-static void write24(uint16_t color)
-{
-    uint8_t r = color565_to_r(color);
-    uint8_t g = color565_to_g(color);
-    uint8_t b = color565_to_b(color);
-    write8(r);
-    write8(g);
-    write8(b);
-}
-
 static void writecmddata(uint16_t cmd, uint16_t dat)
 {
     CS_ACTIVE;
@@ -275,7 +243,6 @@ void reset(void)
 {
     done_reset = 1;
     setWriteDir();
-    CTL_INIT();
     CS_IDLE;
     RD_IDLE;
     WR_IDLE;
