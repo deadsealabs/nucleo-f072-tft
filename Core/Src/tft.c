@@ -71,24 +71,11 @@ void setWriteDir (void);
 
 static uint8_t done_reset;
 
-static uint8_t color565_to_r(uint16_t color) {
-    return ((color & 0xF800) >> 8);  // transform to rrrrrxxx
-}
-
-static uint8_t color565_to_g(uint16_t color) {
-    return ((color & 0x07E0) >> 3);  // transform to ggggggxx
-}
-static uint8_t color565_to_b(uint16_t color) {
-    return ((color & 0x001F) << 3);  // transform to bbbbbxxx
-}
-
 uint16_t color565(uint8_t r, uint8_t g, uint8_t b) { return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | ((b & 0xF8) >> 3); }
 
 uint16_t readPixel(int16_t x, int16_t y) { uint16_t color; readGRAM(x, y, &color, 1, 1); return color; }
 
 static void pushColors_any(uint16_t cmd, uint8_t * block, int16_t n, uint8_t first, uint8_t flags);
-
-static void write24(uint16_t color);
 
 static void writecmddata(uint16_t cmd, uint16_t dat);
 
@@ -151,7 +138,6 @@ void setWriteDir (void)
 	PIN_OUTPUT(D6_PORT, D6_PIN);
 	PIN_OUTPUT(D7_PORT, D7_PIN);
 }
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 static void pushColors_any(uint16_t cmd, uint8_t * block, int16_t n, uint8_t first, uint8_t flags)
 {
@@ -215,6 +201,7 @@ static inline void WriteCmdParam4(uint8_t cmd, uint8_t d1, uint8_t d2, uint8_t d
 
 #define TFTLCD_DELAY 0xFFFF
 #define TFTLCD_DELAY8 0x7F
+
 static void init_table(const void *table, int16_t size)
 {
 

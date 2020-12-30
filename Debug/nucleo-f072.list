@@ -27,23 +27,23 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   ALLOC
  11 .ARM.attributes 00000028  00000000  00000000  00020010  2**0
                   CONTENTS, READONLY
- 12 .debug_info   0000a330  00000000  00000000  00020038  2**0
+ 12 .debug_info   0000a2b2  00000000  00000000  00020038  2**0
                   CONTENTS, READONLY, DEBUGGING
- 13 .debug_abbrev 000015d1  00000000  00000000  0002a368  2**0
+ 13 .debug_abbrev 000015b7  00000000  00000000  0002a2ea  2**0
                   CONTENTS, READONLY, DEBUGGING
- 14 .debug_aranges 00000b18  00000000  00000000  0002b940  2**3
+ 14 .debug_aranges 00000b00  00000000  00000000  0002b8a8  2**3
                   CONTENTS, READONLY, DEBUGGING
- 15 .debug_ranges 00000a78  00000000  00000000  0002c458  2**3
+ 15 .debug_ranges 00000a60  00000000  00000000  0002c3a8  2**3
                   CONTENTS, READONLY, DEBUGGING
- 16 .debug_macro  00017def  00000000  00000000  0002ced0  2**0
+ 16 .debug_macro  00017def  00000000  00000000  0002ce08  2**0
                   CONTENTS, READONLY, DEBUGGING
- 17 .debug_line   000088e5  00000000  00000000  00044cbf  2**0
+ 17 .debug_line   000088a9  00000000  00000000  00044bf7  2**0
                   CONTENTS, READONLY, DEBUGGING
- 18 .debug_str    000937fb  00000000  00000000  0004d5a4  2**0
+ 18 .debug_str    000937d1  00000000  00000000  0004d4a0  2**0
                   CONTENTS, READONLY, DEBUGGING
- 19 .comment      0000007b  00000000  00000000  000e0d9f  2**0
+ 19 .comment      0000007b  00000000  00000000  000e0c71  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  000028a0  00000000  00000000  000e0e1c  2**2
+ 20 .debug_frame  00002840  00000000  00000000  000e0cec  2**2
                   CONTENTS, READONLY, DEBUGGING
 
 Disassembly of section .text:
@@ -1133,7 +1133,7 @@ uint16_t height(void)
 
 080006b4 <WriteCmdData>:
 
-static void write24(uint16_t color);
+static void pushColors_any(uint16_t cmd, uint8_t * block, int16_t n, uint8_t first, uint8_t flags);
 
 static void writecmddata(uint16_t cmd, uint16_t dat);
 
@@ -2126,6 +2126,7 @@ static inline void WriteCmdParam4(uint8_t cmd, uint8_t d1, uint8_t d2, uint8_t d
 
 #define TFTLCD_DELAY 0xFFFF
 #define TFTLCD_DELAY8 0x7F
+
 static void init_table(const void *table, int16_t size)
 {
  8000e4a:	b590      	push	{r4, r7, lr}
