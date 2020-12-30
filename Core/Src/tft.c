@@ -150,8 +150,6 @@ uint16_t  _lcd_xor, _lcd_capable;
 
 uint16_t _lcd_ID, _lcd_rev, _lcd_madctl, _lcd_drivOut, _MC, _MP, _MW, _SC, _EC, _SP, _EP;
 
-//extern GFXfont *gfxFont;
-
 void setReadDir (void)
 {
 	PIN_INPUT(D0_PORT, D0_PIN);
@@ -287,7 +285,7 @@ void reset(void)
     delay(100);
     RESET_IDLE;
     delay(100);
-	WriteCmdData(0xB0, 0x0000);   //R61520 needs this to read ID
+	WriteCmdData(0xB0, 0x0000);
 }
 
 static uint16_t read16bits(void)
@@ -309,8 +307,8 @@ uint16_t readReg(uint16_t reg, int8_t index)
     WriteCmd(reg);
     setReadDir();
     delay(1);    //1us should be adequate
-    //    READ_16(ret);
-    do { ret = read16bits(); }while (--index >= 0);  //need to test with SSD1963
+
+    do { ret = read16bits(); }while (--index >= 0);
     RD_IDLE;
     CS_IDLE;
     setWriteDir();
@@ -332,38 +330,31 @@ uint32_t readReg40(uint16_t reg)
     return ((uint32_t) h << 24) | (m << 8) | (l >> 8);
 }
 
-
 void tft_init(uint16_t ID)
 {
     int16_t *p16;               //so we can "write" to a const protected variable.
     const uint8_t *table8_ads = NULL;
     int16_t table_size;
     _lcd_xor = 0;
-    switch (_lcd_ID = ID) {
-    case 0x9486:
-        _lcd_capable = AUTO_READINC | MIPI_DCS_REV1 | MV_AXIS; //Red 3.5", Blue 3.5"
-        static const uint8_t ILI9486_regValues[]  = {
-            0xC0, 2, 0x0d, 0x0d,        //Power Control 1 [0E 0E]
-            0xC1, 2, 0x43, 0x00,        //Power Control 2 [43 00]
-            0xC2, 1, 0x00,      //Power Control 3 [33]
-            0xC5, 4, 0x00, 0x48, 0x00, 0x48,    //VCOM  Control 1 [00 40 00 40]
-            0xB4, 1, 0x00,      //Inversion Control [00]
-            0xB6, 3, 0x02, 0x02, 0x3B,  // Display Function Control [02 02 3B]
-            // 3.2 TM  3.2 Inch Initial Code not bad
-			0xE0, 15, 0x0F, 0x21, 0x1C, 0x0B, 0x0E, 0x08, 0x49, 0x98, 0x38, 0x09, 0x11, 0x03, 0x14, 0x10, 0x00,
-			0xE1, 15, 0x0F, 0x2F, 0x2B, 0x0C, 0x0E, 0x06, 0x47, 0x76, 0x37, 0x07, 0x11, 0x04, 0x23, 0x1E, 0x00,
-        };
-        table8_ads = ILI9486_regValues, table_size = sizeof(ILI9486_regValues);
-        p16 = (int16_t *) &_height;
-        *p16 = 320;
-        p16 = (int16_t *) &_width;
-        *p16 = 480;
-        break;
-    default:
-        p16 = (int16_t *) &width;
-        *p16 = 0;       //error value for width
-        break;
-    }
+
+    _lcd_capable = AUTO_READINC | MIPI_DCS_REV1 | MV_AXIS; //Red 3.5", Blue 3.5"
+	static const uint8_t ILI9486_regValues[]  = {
+		0xC0, 2, 0x0d, 0x0d,        //Power Control 1 [0E 0E]
+		0xC1, 2, 0x43, 0x00,        //Power Control 2 [43 00]
+		0xC2, 1, 0x00,      //Power Control 3 [33]
+		0xC5, 4, 0x00, 0x48, 0x00, 0x48,    //VCOM  Control 1 [00 40 00 40]
+		0xB4, 1, 0x00,      //Inversion Control [00]
+		0xB6, 3, 0x02, 0x02, 0x3B,  // Display Function Control [02 02 3B]
+		// 3.2 TM  3.2 Inch Initial Code not bad
+		0xE0, 15, 0x0F, 0x21, 0x1C, 0x0B, 0x0E, 0x08, 0x49, 0x98, 0x38, 0x09, 0x11, 0x03, 0x14, 0x10, 0x00,
+		0xE1, 15, 0x0F, 0x2F, 0x2B, 0x0C, 0x0E, 0x06, 0x47, 0x76, 0x37, 0x07, 0x11, 0x04, 0x23, 0x1E, 0x00,
+	};
+	table8_ads = ILI9486_regValues, table_size = sizeof(ILI9486_regValues);
+	p16 = (int16_t *) &_height;
+	*p16 = 320;
+	p16 = (int16_t *) &_width;
+	*p16 = 480;
+
     _lcd_rev = ((_lcd_capable & REV_SCREEN) != 0);
     if (table8_ads != NULL) {
         static const uint8_t reset_off[]  = {
@@ -482,64 +473,25 @@ void setRotation(uint8_t r)
    if (_lcd_capable & INVERT_RGB)
        val ^= 0x08;
    if (_lcd_capable & MIPI_DCS_REV1) {
-       if (_lcd_ID == 0x6814) {  //.kbv my weird 0x9486 might be 68140
-           GS = (val & 0x80) ? (1 << 6) : 0;   //MY
-           SS_v = (val & 0x40) ? (1 << 5) : 0;   //MX
-           val &= 0x28;        //keep MV, BGR, MY=0, MX=0, ML=0
-           d[0] = 0;
-           d[1] = GS | SS_v | 0x02;      //MY, MX
-           d[2] = 0x3B;
-           WriteCmdParamN(0xB6, 3, d);
-           goto common_MC;
-       }
-       else if (_lcd_ID == 0x1963 || _lcd_ID == 0x9481 || _lcd_ID == 0x1511) {
-           if (val & 0x80)
-               val |= 0x01;    //GS
-           if ((val & 0x40))
-               val |= 0x02;    //SS
-           if (_lcd_ID == 0x1963) val &= ~0xC0;
-           if (_lcd_ID == 0x9481) val &= ~0xD0;
-           if (_lcd_ID == 0x1511) {
-               val &= ~0x10;   //remove ML
-               val |= 0xC0;    //force penguin 180 rotation
-           }
-           goto common_MC;
-      }
      common_MC:
        _MC = 0x2A, _MP = 0x2B, _MW = 0x2C, _SC = 0x2A, _EC = 0x2A, _SP = 0x2B, _EP = 0x2B;
      common_BGR:
        WriteCmdParamN(0x36, 1, &val);
        _lcd_madctl = val;
    }
-   // cope with 9320 variants
    else {
-       switch (_lcd_ID) {
-       case 0x5420:
-       case 0x7793:
-       case 0x9326:
-		case 0xB509:
-           _MC = 0x200, _MP = 0x201, _MW = 0x202, _SC = 0x210, _EC = 0x211, _SP = 0x212, _EP = 0x213;
-           GS = (val & 0x80) ? (1 << 15) : 0;
-			uint16_t NL;
-			NL = ((432 / 8) - 1) << 9;
-           if (_lcd_ID == 0x9326 || _lcd_ID == 0x5420) NL >>= 1;
-           WriteCmdData(0x400, GS | NL);
-           goto common_SS;
-       default:
-           _MC = 0x20, _MP = 0x21, _MW = 0x22, _SC = 0x50, _EC = 0x51, _SP = 0x52, _EP = 0x53;
-           GS = (val & 0x80) ? (1 << 15) : 0;
-           WriteCmdData(0x60, GS | 0x2700);    // Gate Scan Line (0xA700)
-         common_SS:
-           SS_v = (val & 0x40) ? (1 << 8) : 0;
-           WriteCmdData(0x01, SS_v);     // set Driver Output Control
-         common_ORG:
-           ORG = (val & 0x20) ? (1 << 3) : 0;
-           if (val & 0x08)
-               ORG |= 0x1000;  //BGR
-           _lcd_madctl = ORG | 0x0030;
-           WriteCmdData(0x03, _lcd_madctl);    // set GRAM write direction and BGR=1.
-           break;
-		}
+	   _MC = 0x20, _MP = 0x21, _MW = 0x22, _SC = 0x50, _EC = 0x51, _SP = 0x52, _EP = 0x53;
+	   GS = (val & 0x80) ? (1 << 15) : 0;
+	   WriteCmdData(0x60, GS | 0x2700);    // Gate Scan Line (0xA700)
+	 common_SS:
+	   SS_v = (val & 0x40) ? (1 << 8) : 0;
+	   WriteCmdData(0x01, SS_v);     // set Driver Output Control
+	 common_ORG:
+	   ORG = (val & 0x20) ? (1 << 3) : 0;
+	   if (val & 0x08)
+		   ORG |= 0x1000;  //BGR
+	   _lcd_madctl = ORG | 0x0030;
+	   WriteCmdData(0x03, _lcd_madctl);    // set GRAM write direction and BGR=1.
    }
    if ((rotation & 1) && ((_lcd_capable & MV_AXIS) == 0)) {
        uint16_t x;
@@ -588,12 +540,16 @@ void vertScroll(int16_t top, int16_t scrollines, int16_t offset)
     int16_t bfa = HEIGHT - top - scrollines;  // bottom fixed area
     int16_t vsp;
     int16_t sea = top;
+
 	if (_lcd_ID == 0x9327) bfa += 32;
-    if (offset <= -scrollines || offset >= scrollines) offset = 0; //valid scroll
+
+	if (offset <= -scrollines || offset >= scrollines) offset = 0; //valid scroll
 	vsp = top + offset; // vertical start position
-    if (offset < 0)
+
+	if (offset < 0)
         vsp += scrollines;          //keep in unsigned range
     sea = top + scrollines - 1;
+
     if (_lcd_capable & MIPI_DCS_REV1) {
         uint8_t d[6];           // for multi-byte parameters
         d[0] = top >> 8;        //TFA
@@ -603,7 +559,6 @@ void vertScroll(int16_t top, int16_t scrollines, int16_t offset)
         d[4] = bfa >> 8;        //BFA
         d[5] = bfa;
         WriteCmdParamN(0x33, 6, d);
-//        if (offset == 0 && rotation > 1) vsp = top + scrollines;   //make non-valid
 		d[0] = vsp >> 8;        //VSP
         d[1] = vsp;
         WriteCmdParamN(0x37, 2, d);
@@ -612,40 +567,26 @@ void vertScroll(int16_t top, int16_t scrollines, int16_t offset)
 		}
 		return;
     }
-    // cope with 9320 style variants:
-    switch (_lcd_ID) {
-    case 0x7783:
-        WriteCmdData(0x61, _lcd_rev);   //!NDL, !VLE, REV
-        WriteCmdData(0x6A, vsp);        //VL#
-        break;
-	case 0x5420:
-    case 0x7793:
-	case 0x9326:
-	case 0xB509:
-        WriteCmdData(0x401, (1 << 1) | _lcd_rev);       //VLE, REV
-        WriteCmdData(0x404, vsp);       //VL#
-        break;
-    default:
-        // 0x6809, 0x9320, 0x9325, 0x9335, 0xB505 can only scroll whole screen
-        WriteCmdData(0x61, (1 << 1) | _lcd_rev);        //!NDL, VLE, REV
-        WriteCmdData(0x6A, vsp);        //VL#
-        break;
-    }
+
+	// 0x6809, 0x9320, 0x9325, 0x9335, 0xB505 can only scroll whole screen
+	WriteCmdData(0x61, (1 << 1) | _lcd_rev);        //!NDL, VLE, REV
+	WriteCmdData(0x6A, vsp);        //VL#
 }
 
 void pushColors16b(uint16_t * block, int16_t n, uint8_t first)
 {
     pushColors_any(_MW, (uint8_t *)block, n, first, 0);
 }
+
 void pushColors8b(uint8_t * block, int16_t n, uint8_t first)
 {
     pushColors_any(_MW, (uint8_t *)block, n, first, 2);   //regular bigend
 }
+
 void pushColors4n(const uint8_t * block, int16_t n, uint8_t first, uint8_t bigend)
 {
     pushColors_any(_MW, (uint8_t *)block, n, first, bigend ? 3 : 1);
 }
-
 
 void fillScreen(uint16_t color)
 {
@@ -656,26 +597,14 @@ void invertDisplay(uint8_t i)
 {
     uint8_t val;
     _lcd_rev = ((_lcd_capable & REV_SCREEN) != 0) ^ i;
-    if (_lcd_capable & MIPI_DCS_REV1) {
+
+    if (_lcd_capable & MIPI_DCS_REV1)
+    {
 		WriteCmdParamN(_lcd_rev ? 0x21 : 0x20, 0, NULL);
         return;
     }
-    // cope with 9320 style variants:
-    switch (_lcd_ID) {
-    case 0x9225:                                        //REV is in reg(0x07) like Samsung
-    case 0x0154:
-        WriteCmdData(0x07, 0x13 | (_lcd_rev << 2));     //.kbv kludge
-        break;
-	case 0x5420:
-    case 0x7793:
-    case 0x9326:
-	case 0xB509:
-        WriteCmdData(0x401, (1 << 1) | _lcd_rev);       //.kbv kludge VLE
-        break;
-    default:
-        WriteCmdData(0x61, _lcd_rev);
-        break;
-    }
+
+    WriteCmdData(0x61, _lcd_rev);
 }
 
 void  drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color)
@@ -692,8 +621,7 @@ void writePixel(int16_t x, int16_t y, uint16_t color)
     drawPixel(x, y, color);
 }
 
-void writeLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
-        uint16_t color) {
+void writeLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color) {
     int16_t steep = abs(y1 - y0) > abs(x1 - x0);
     if (steep) {
         _swap_int16_t(x0, y0);
@@ -824,7 +752,6 @@ void fillCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color)
 
 void fillCircleHelper(int16_t x0, int16_t y0, int16_t r, uint8_t corners, int16_t delta, uint16_t color)
 {
-
     int16_t f     = 1 - r;
     int16_t ddF_x = 1;
     int16_t ddF_y = -2 * r;
@@ -870,9 +797,6 @@ void drawRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
 void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
 {
     int16_t end;
-#if defined(SUPPORT_9488_555)
-    if (is555) color = color565_to_555(color);
-#endif
     if (w < 0) {
         w = -w;
         x -= w;
@@ -955,7 +879,6 @@ void drawTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, in
 
 void fillTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color)
 {
-
     int16_t a, b, y, last;
 
     // Sort coordinates by Y order (y2 >= y1 >= y0)
@@ -1004,10 +927,6 @@ void fillTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, in
         b   = x0 + sb / dy02;
         sa += dx01;
         sb += dx02;
-        /* longhand:
-        a = x0 + (x1 - x0) * (y - y0) / (y1 - y0);
-        b = x0 + (x2 - x0) * (y - y0) / (y2 - y0);
-        */
         if(a > b) _swap_int16_t(a,b);
         drawFastHLine(a, y, b-a+1, color);
     }
@@ -1021,10 +940,6 @@ void fillTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, in
         b   = x0 + sb / dy02;
         sa += dx12;
         sb += dx02;
-        /* longhand:
-        a = x1 + (x2 - x1) * (y - y1) / (y2 - y1);
-        b = x0 + (x2 - x0) * (y - y0) / (y2 - y0);
-        */
         if(a > b) _swap_int16_t(a,b);
         drawFastHLine(a, y, b-a+1, color);
     }
@@ -1135,7 +1050,6 @@ void testFilledCircles(uint8_t radius, uint16_t color)
             fillCircle(x, y, radius, color);
         }
     }
-
 }
 
 void testCircles(uint8_t radius, uint16_t color)
@@ -1151,7 +1065,6 @@ void testCircles(uint8_t radius, uint16_t color)
             drawCircle(x, y, radius, color);
         }
     }
-
 }
 
 void testTriangles() {
@@ -1167,56 +1080,59 @@ void testTriangles() {
             cx + i, cy + i, // bottom right
             color565(0, 0, i));
     }
-
 }
 
-void testFilledTriangles() {
-    int           i, cx = width()  / 2 - 1,
-                     cy = height() / 2 - 1;
+void testFilledTriangles()
+{
+    int i;
+    int cx = width()  / 2 - 1;
+    int cy = height() / 2 - 1;
 
     fillScreen(BLACK);
-    for (i = min(cx, cy); i > 10; i -= 5) {
-        fillTriangle(cx, cy - i, cx - i, cy + i, cx + i, cy + i,
-                         color565(0, i, i));
-        drawTriangle(cx, cy - i, cx - i, cy + i, cx + i, cy + i,
-                         color565(i, i, 0));
+
+    for (i = min(cx, cy); i > 10; i -= 5)
+    {
+        fillTriangle(cx, cy - i, cx - i, cy + i, cx + i, cy + i, color565(0, i, i));
+        drawTriangle(cx, cy - i, cx - i, cy + i, cx + i, cy + i, color565(i, i, 0));
     }
 }
 
-void testRoundRects() {
-    int           w, i, i2, red, step,
-                  cx = width()  / 2 - 1,
-                  cy = height() / 2 - 1;
+void testRoundRects()
+{
+    int w, i, i2, red, step;
+	int cx = width()  / 2 - 1;
+	int cy = height() / 2 - 1;
 
     fillScreen(BLACK);
-    w     = min(width(), height());
+    w = min(width(), height());
     red = 0;
     step = (256 * 6) / w;
-    for (i = 0; i < w; i += 6) {
+
+    for (i = 0; i < w; i += 6)
+    {
         i2 = i / 2;
         red += step;
         drawRoundRect(cx - i2, cy - i2, i, i, i / 8, color565(red, 0, 0));
     }
-
 }
 
-void testFilledRoundRects() {
-    int           i, i2, green, step,
-                  cx = width()  / 2 - 1,
-                  cy = height() / 2 - 1;
+void testFilledRoundRects()
+{
+    int i, i2, green, step;
+    int cx = width()  / 2 - 1;
+	int cy = height() / 2 - 1;
 
     fillScreen(BLACK);
     green = 256;
     step = (256 * 6) / min(width(), height());
-    for (i = min(width(), height()); i > 20; i -= 6) {
+
+    for (i = min(width(), height()); i > 20; i -= 6)
+    {
         i2 = i / 2;
         green -= step;
         fillRoundRect(cx - i2, cy - i2, i, i, i / 8, color565(0, green, 0));
     }
-
 }
-
-
 
 void drawChar(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg, uint8_t size)
 {
@@ -1238,140 +1154,141 @@ void drawChar(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg
         uint8_t  xx, yy, bits = 0, bit = 0;
         int16_t  xo16 = 0, yo16 = 0;
 
-        if(size > 1) {
+        if(size > 1)
+        {
             xo16 = xo;
             yo16 = yo;
         }
 
-        for(yy=0; yy<h; yy++) {
-            for(xx=0; xx<w; xx++) {
-                if(!(bit++ & 7)) {
+        for(yy=0; yy<h; yy++)
+        {
+            for(xx=0; xx<w; xx++)
+            {
+                if(!(bit++ & 7))
+                {
                     bits = pgm_read_byte(&bitmap[bo++]);
                 }
-                if(bits & 0x80) {
-                    if(size == 1) {
+
+                if(bits & 0x80)
+                {
+                    if(size == 1)
+                    {
                         writePixel(x+xo+xx, y+yo+yy, color);
-                    } else {
-                        fillRect(x+(xo16+xx)*size, y+(yo16+yy)*size,
-                          size, size, color);
+                    }
+                    else
+                    {
+                        fillRect(x+(xo16+xx)*size, y+(yo16+yy)*size, size, size, color);
                     }
                 }
                 bits <<= 1;
             }
         }
-
     } // End classic vs custom font
 }
-/**************************************************************************/
-/*!
-    @brief  Print one byte/character of data, used to support print()
-    @param  c  The 8-bit ascii character to write
-*/
-/**************************************************************************/
+
 size_t write(uint8_t c)
 {
+	if(c == '\n')
 	{
+		cursor_x  = 0;
+		cursor_y += (int16_t)textsize * (uint8_t)pgm_read_byte(&gfxFont->yAdvance);
+	}
+	else if(c != '\r')
+	{
+		uint8_t first = pgm_read_byte(&gfxFont->first);
 
-        if(c == '\n') {
-            cursor_x  = 0;
-            cursor_y += (int16_t)textsize *
-                        (uint8_t)pgm_read_byte(&gfxFont->yAdvance);
-        } else if(c != '\r') {
-            uint8_t first = pgm_read_byte(&gfxFont->first);
-            if((c >= first) && (c <= (uint8_t)pgm_read_byte(&gfxFont->last))) {
-                GFXglyph *glyph = &(((GFXglyph *)pgm_read_pointer(
-                  &gfxFont->glyph))[c - first]);
-                uint8_t   w     = pgm_read_byte(&glyph->width),
-                          h     = pgm_read_byte(&glyph->height);
-                if((w > 0) && (h > 0)) { // Is there an associated bitmap?
-                    int16_t xo = (int8_t)pgm_read_byte(&glyph->xOffset); // sic
-                    if(wrap && ((cursor_x + textsize * (xo + w)) > _width)) {
-                        cursor_x  = 0;
-                        cursor_y += (int16_t)textsize *
-                          (uint8_t)pgm_read_byte(&gfxFont->yAdvance);
-                    }
-                    drawChar(cursor_x, cursor_y, c, textcolor, textbgcolor, textsize);
-                }
-                cursor_x += (uint8_t)pgm_read_byte(&glyph->xAdvance) * (int16_t)textsize;
-            }
-        }
+		if((c >= first) && (c <= (uint8_t)pgm_read_byte(&gfxFont->last)))
+		{
+			GFXglyph *glyph = &(((GFXglyph *)pgm_read_pointer(&gfxFont->glyph))[c - first]);
+			uint8_t w = pgm_read_byte(&glyph->width);
+			uint8_t h = pgm_read_byte(&glyph->height);
 
-    }
+			if((w > 0) && (h > 0))
+			{ // Is there an associated bitmap?
+				int16_t xo = (int8_t)pgm_read_byte(&glyph->xOffset);
+
+				if(wrap && ((cursor_x + textsize * (xo + w)) > _width))
+				{
+					cursor_x  = 0;
+					cursor_y += (int16_t)textsize * (uint8_t)pgm_read_byte(&gfxFont->yAdvance);
+				}
+
+				drawChar(cursor_x, cursor_y, c, textcolor, textbgcolor, textsize);
+			}
+
+			cursor_x += (uint8_t)pgm_read_byte(&glyph->xAdvance) * (int16_t)textsize;
+		}
+	}
+
     return 1;
 }
 
-
-/**************************************************************************/
-/*!
-    @brief Set the font to display when print()ing, either custom or default
-    @param  f  The GFXfont object, if NULL use built in 6x8 font
-*/
-/**************************************************************************/
-void setFont(const GFXfont *f) {
-    if(f) {            // Font struct pointer passed in?
-        if(!gfxFont) { // And no current font struct?
+void setFont(const GFXfont *f)
+{
+    if(f)
+    {            // Font struct pointer passed in?
+        if(!gfxFont)
+        { // And no current font struct?
             // Switching from classic to new font behavior.
             // Move cursor pos down 6 pixels so it's on baseline.
             cursor_y += 6;
         }
-    } else if(gfxFont) { // NULL passed.  Current font struct defined?
+    }
+    else if(gfxFont)
+    { 	// NULL passed.  Current font struct defined?
         // Switching from new to classic font behavior.
         // Move cursor pos up 6 pixels so it's at top-left of char.
         cursor_y -= 6;
     }
+
     gfxFont = (GFXfont *)f;
 }
 
-
-/**************************************************************************/
-/*!
-    @brief    Helper to determine size of a character with current font/size.
-       Broke this out as it's used by both the - and RAM-resident getTextBounds() functions.
-    @param    c     The ascii character in question
-    @param    x     Pointer to x location of character
-    @param    y     Pointer to y location of character
-    @param    minx  Minimum clipping value for X
-    @param    miny  Minimum clipping value for Y
-    @param    maxx  Maximum clipping value for X
-    @param    maxy  Maximum clipping value for Y
-*/
-/**************************************************************************/
 void charBounds(char c, int16_t *x, int16_t *y, int16_t *minx, int16_t *miny, int16_t *maxx, int16_t *maxy)
 {
-
-    if(gfxFont) {
-
-        if(c == '\n') { // Newline?
+    if(gfxFont)
+    {
+        if(c == '\n')
+        {
             *x  = 0;    // Reset x to zero, advance y by one line
             *y += textsize * (uint8_t)pgm_read_byte(&gfxFont->yAdvance);
-        } else if(c != '\r') { // Not a carriage return; is normal char
-            uint8_t first = pgm_read_byte(&gfxFont->first),
-                    last  = pgm_read_byte(&gfxFont->last);
-            if((c >= first) && (c <= last)) { // Char present in this font?
-                GFXglyph *glyph = &(((GFXglyph *)pgm_read_pointer(
-                  &gfxFont->glyph))[c - first]);
-                uint8_t gw = pgm_read_byte(&glyph->width),
-                        gh = pgm_read_byte(&glyph->height),
-                        xa = pgm_read_byte(&glyph->xAdvance);
-                int8_t  xo = pgm_read_byte(&glyph->xOffset),
-                        yo = pgm_read_byte(&glyph->yOffset);
-                if(wrap && ((*x+(((int16_t)xo+gw)*textsize)) > _width)) {
+        }
+        else if(c != '\r')
+        { // Not a carriage return; is normal char
+        	uint8_t first = pgm_read_byte(&gfxFont->first);
+        	uint8_t last  = pgm_read_byte(&gfxFont->last);
+
+        	if((c >= first) && (c <= last))
+        	{ // Char present in this font?
+        		GFXglyph *glyph = &(((GFXglyph *)pgm_read_pointer(&gfxFont->glyph))[c - first]);
+
+        		uint8_t gw = pgm_read_byte(&glyph->width);
+        		uint8_t gh = pgm_read_byte(&glyph->height);
+        		uint8_t xa = pgm_read_byte(&glyph->xAdvance);
+
+        		int8_t  xo = pgm_read_byte(&glyph->xOffset);
+        		uint8_t yo = pgm_read_byte(&glyph->yOffset);
+
+                if(wrap && ((*x+(((int16_t)xo+gw)*textsize)) > _width))
+                {
                     *x  = 0; // Reset x to zero, advance y by one line
                     *y += textsize * (uint8_t)pgm_read_byte(&gfxFont->yAdvance);
                 }
-                int16_t ts = (int16_t)textsize,
-                        x1 = *x + xo * ts,
-                        y1 = *y + yo * ts,
-                        x2 = x1 + gw * ts - 1,
-                        y2 = y1 + gh * ts - 1;
+
+                int16_t ts = (int16_t) textsize;
+                uint8_t x1 = *x + xo * ts;
+                uint8_t y1 = *y + yo * ts;
+                uint8_t x2 = x1 + gw * ts - 1;
+                uint8_t y2 = y1 + gh * ts - 1;
+
                 if(x1 < *minx) *minx = x1;
                 if(y1 < *miny) *miny = y1;
                 if(x2 > *maxx) *maxx = x2;
                 if(y2 > *maxy) *maxy = y2;
+
                 *x += xa * ts;
             }
         }
-
     } else { // Default font
 
         if(c == '\n') {                     // Newline?
@@ -1394,19 +1311,8 @@ void charBounds(char c, int16_t *x, int16_t *y, int16_t *minx, int16_t *miny, in
     }
 }
 
-/**************************************************************************/
-/*!
-    @brief    Helper to determine size of a string with current font/size. Pass string and a cursor position, returns UL corner and W,H.
-    @param    str     The ascii string to measure
-    @param    x       The current cursor X
-    @param    y       The current cursor Y
-    @param    x1      The boundary X coordinate, set by function
-    @param    y1      The boundary Y coordinate, set by function
-    @param    w      The boundary width, set by function
-    @param    h      The boundary height, set by function
-*/
-/**************************************************************************/
-void getTextBounds(const char *str, int16_t x, int16_t y, int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h) {
+void getTextBounds(const char *str, int16_t x, int16_t y, int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h)
+{
     uint8_t c; // Current character
 
     *x1 = x;
@@ -1416,13 +1322,18 @@ void getTextBounds(const char *str, int16_t x, int16_t y, int16_t *x1, int16_t *
     int16_t minx = _width, miny = _height, maxx = -1, maxy = -1;
 
     while((c = *str++))
+    {
         charBounds(c, &x, &y, &minx, &miny, &maxx, &maxy);
+    }
 
-    if(maxx >= minx) {
+    if(maxx >= minx)
+    {
         *x1 = minx;
         *w  = maxx - minx + 1;
     }
-    if(maxy >= miny) {
+
+    if(maxy >= miny)
+    {
         *y1 = miny;
         *h  = maxy - miny + 1;
     }
@@ -1444,7 +1355,9 @@ void printstr (uint8_t *str)
 }
 
 void setTextWrap(uint8_t w)
-{ wrap = w; }
+{
+	wrap = w;
+}
 
 void setTextColor (uint16_t color)
 {
@@ -1470,13 +1383,26 @@ uint8_t getRotation (void)
 void scrollup (uint16_t speed)
 {
      uint16_t maxscroll;
-     if (getRotation() & 1) maxscroll = width();
-     else maxscroll = height();
+     if (getRotation() & 1)
+	 {
+    	 maxscroll = width();
+	 }
+     else
+     {
+    	 maxscroll = height();
+     }
+
      for (uint16_t i = 1; i <= maxscroll; i++)
      {
-          vertScroll(0, maxscroll, i);
-         if (speed < 655) delay(speed*100);
-         else HAL_Delay(speed);
+    	 vertScroll(0, maxscroll, i);
+         if (speed < 655)
+		 {
+        	 delay(speed*100);
+		 }
+         else
+		 {
+        	 HAL_Delay(speed);
+		 }
      }
 
 }
@@ -1484,12 +1410,25 @@ void scrollup (uint16_t speed)
 void scrolldown (uint16_t speed)
 {
 	uint16_t maxscroll;
-	if (getRotation() & 1) maxscroll = width();
-	     else maxscroll = height();
+	if (getRotation() & 1)
+	{
+		maxscroll = width();
+	}
+	else
+	{
+		maxscroll = height();
+	}
+
 	for (uint16_t i = 1; i <= maxscroll; i++)
 	{
 		vertScroll(0, maxscroll, 0 - (int16_t)i);
-		if (speed < 655) delay(speed*100);
-		else HAL_Delay(speed);
+		if (speed < 655)
+		{
+			delay(speed*100);
+		}
+		else
+		{
+			HAL_Delay(speed);
+		}
 	}
 }
