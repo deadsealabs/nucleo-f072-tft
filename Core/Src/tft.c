@@ -97,12 +97,13 @@ uint32_t readReg32(uint16_t reg);
 
 uint32_t readReg40(uint16_t reg);
 
-uint8_t cursor_y  =0, cursor_x    = 0;
-uint8_t textsize  = 1;
-uint16_t textcolor =0xffff,  textbgcolor = 0xFFFF;
-uint8_t wrap      = true;
-uint8_t _cp437    = false;
-uint8_t rotation  = 0;
+uint8_t cursor_y   = 0;
+uint8_t cursor_x   = 0;
+uint8_t textsize   = 1;
+uint16_t textcolor = 0xffff,  textbgcolor = 0xFFFF;
+uint8_t wrap       = true;
+uint8_t _cp437     = false;
+uint8_t rotation   = 0;
 
 #define pgm_read_byte(addr) (*(const unsigned char *)(addr))
 #define pgm_read_word(addr) (*(const unsigned short *)(addr))
@@ -111,9 +112,7 @@ uint8_t rotation  = 0;
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #define _swap_int16_t(a, b) { int16_t t = a; a = b; b = t; }
 
-uint16_t  _lcd_xor, _lcd_capable;
-
-uint16_t _lcd_ID, _lcd_rev, _lcd_madctl, _lcd_drivOut, _MC, _MP, _MW, _SC, _EC, _SP, _EP;
+uint16_t _lcd_capable, _lcd_ID, _lcd_rev, _lcd_madctl, _lcd_drivOut, _MC, _MP, _MW, _SC, _EC, _SP, _EP;
 
 void setReadDir (void)
 {
@@ -254,15 +253,20 @@ static uint16_t read16bits(void)
 uint16_t readReg(uint16_t reg, int8_t index)
 {
     uint16_t ret;
-    uint8_t lo;
     if (!done_reset)
+    {
         reset();
+    }
+
     CS_ACTIVE;
     WriteCmd(reg);
     setReadDir();
-    delay(1);    //1us should be adequate
+    delay(1);
 
-    do { ret = read16bits(); }while (--index >= 0);
+    do {
+    	ret = read16bits();
+    } while (--index >= 0);
+
     RD_IDLE;
     CS_IDLE;
     setWriteDir();
@@ -276,20 +280,11 @@ uint32_t readReg32(uint16_t reg)
     return ((uint32_t) h << 16) | (l);
 }
 
-uint32_t readReg40(uint16_t reg)
-{
-    uint16_t h = readReg(reg, 0);
-    uint16_t m = readReg(reg, 1);
-    uint16_t l = readReg(reg, 2);
-    return ((uint32_t) h << 24) | (m << 8) | (l >> 8);
-}
-
 void tft_init(uint16_t ID)
 {
     int16_t *p16;               //so we can "write" to a const protected variable.
     const uint8_t *table8_ads = NULL;
     int16_t table_size;
-    _lcd_xor = 0;
 
     _lcd_capable = AUTO_READINC | MIPI_DCS_REV1 | MV_AXIS; //Red 3.5", Blue 3.5"
 	static const uint8_t ILI9486_regValues[]  = {
@@ -341,7 +336,7 @@ int16_t readGRAM(int16_t x, int16_t y, uint16_t * block, int16_t w, int16_t h)
 {
     uint16_t ret, dummy, _MR = _MW;
     int16_t n = w * h, row = 0, col = 0;
-    uint8_t r, g, b, tmp;
+    uint8_t r, g, b;
     if (_lcd_ID == 0x1602) _MR = 0x2E;
     setAddrWindow(x, y, x + w - 1, y + h - 1);
     while (n > 0) {
@@ -401,8 +396,8 @@ int16_t readGRAM(int16_t x, int16_t y, uint16_t * block, int16_t w, int16_t h)
 
 void setRotation(uint8_t r)
 {
-   uint16_t GS, SS_v, ORG, REV = _lcd_rev;
-   uint8_t val, d[3];
+   uint16_t GS, SS_v, ORG;
+   uint8_t val;
    rotation = r & 3;           // just perform the operation ourselves on the protected variables
    _width = (rotation & 1) ? HEIGHT : WIDTH;
    _height = (rotation & 1) ? WIDTH : HEIGHT;
@@ -427,9 +422,7 @@ void setRotation(uint8_t r)
    if (_lcd_capable & INVERT_RGB)
        val ^= 0x08;
    if (_lcd_capable & MIPI_DCS_REV1) {
-     common_MC:
        _MC = 0x2A, _MP = 0x2B, _MW = 0x2C, _SC = 0x2A, _EC = 0x2A, _SP = 0x2B, _EP = 0x2B;
-     common_BGR:
        WriteCmdParamN(0x36, 1, &val);
        _lcd_madctl = val;
    }
@@ -437,10 +430,10 @@ void setRotation(uint8_t r)
 	   _MC = 0x20, _MP = 0x21, _MW = 0x22, _SC = 0x50, _EC = 0x51, _SP = 0x52, _EP = 0x53;
 	   GS = (val & 0x80) ? (1 << 15) : 0;
 	   WriteCmdData(0x60, GS | 0x2700);    // Gate Scan Line (0xA700)
-	 common_SS:
+
 	   SS_v = (val & 0x40) ? (1 << 8) : 0;
 	   WriteCmdData(0x01, SS_v);     // set Driver Output Control
-	 common_ORG:
+
 	   ORG = (val & 0x20) ? (1 << 3) : 0;
 	   if (val & 0x08)
 		   ORG |= 0x1000;  //BGR
@@ -493,7 +486,6 @@ void vertScroll(int16_t top, int16_t scrollines, int16_t offset)
 {
     int16_t bfa = HEIGHT - top - scrollines;  // bottom fixed area
     int16_t vsp;
-    int16_t sea = top;
 
 	if (_lcd_ID == 0x9327) bfa += 32;
 
@@ -502,7 +494,6 @@ void vertScroll(int16_t top, int16_t scrollines, int16_t offset)
 
 	if (offset < 0)
         vsp += scrollines;          //keep in unsigned range
-    sea = top + scrollines - 1;
 
     if (_lcd_capable & MIPI_DCS_REV1) {
         uint8_t d[6];           // for multi-byte parameters
@@ -549,7 +540,6 @@ void fillScreen(uint16_t color)
 
 void invertDisplay(uint8_t i)
 {
-    uint8_t val;
     _lcd_rev = ((_lcd_capable & REV_SCREEN) != 0) ^ i;
 
     if (_lcd_capable & MIPI_DCS_REV1)

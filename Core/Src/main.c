@@ -100,35 +100,32 @@ int main(void)
 
   setRotation(1);
 
-  fillScreen(BLACK);
-
-  testFillScreen();
-  testLines(CYAN);
-  testFastLines(RED, BLUE);
-  testFilledCircles(10, MAGENTA);
-  testCircles(10, WHITE);
-
-  fillScreen(BLACK);
-
-  setRotation(1);
-
-//  printnewtstr(100, RED, &mono12x7bold, 1, "HELLO WORLD");
-
-//  scrollup(100);
-
-//  invertDisplay(1);
-
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	//HAL_TIM_Base_Start(&htim3);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	fillScreen(BLACK);
+
+	testFillScreen();
+	testLines(CYAN);
+	testFastLines(RED, BLUE);
+	testFilledCircles(10, MAGENTA);
+	testCircles(10, WHITE);
+
+	fillScreen(BLACK);
+
+	setRotation(1);
+
+	printnewtstr(100, RED, &mono12x7bold, 1, "HELLO WORLD");
+
+	scrollup(100);
+
+	invertDisplay(1);
   }
   /* USER CODE END 3 */
 }

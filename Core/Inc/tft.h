@@ -37,8 +37,8 @@
   */ 
 
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __HX8347G_H
-#define __HX8347G_H
+#ifndef __TFT_H
+#define __TFT_H
 
 #ifdef __cplusplus
  extern "C" {
@@ -66,10 +66,6 @@
 #define FLIP_VERT       (1<<13)
 #define FLIP_HORIZ      (1<<14)
 
-
-
-
-
 void tft_init(uint16_t ID);
 void reset(void);
 uint16_t readID(void);
@@ -77,8 +73,6 @@ uint16_t readID(void);
 void setRotation(uint8_t r);
 void invertDisplay(uint8_t i);
 void vertScroll(int16_t top, int16_t scrollines, int16_t offset);
-
-
 
 void setFont(const GFXfont *f);
 
@@ -100,5 +94,5 @@ void printstr (uint8_t *str);
 }
 #endif
 
-#endif /* __HX8347G_H */
+#endif
 

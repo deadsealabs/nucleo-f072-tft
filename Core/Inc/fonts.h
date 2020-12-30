@@ -27,7 +27,5 @@ extern const GFXfont mono12x7bold;
 extern const GFXfont mono18x7;
 extern const GFXfont mono18x7bold;
 
-
-
 #endif
 
