@@ -7327,7 +7327,7 @@ void setFont(const GFXfont *f)
 }
 
 
-void printnewtstr (int row, uint16_t txtcolor, const GFXfont *f, uint8_t txtsize, uint8_t *str)
+void printnewtstr (int row, uint16_t txtcolor, const GFXfont *f, uint8_t txtsize, char *str)
 {
  80032d4:	b5b0      	push	{r4, r5, r7, lr}
  80032d6:	b084      	sub	sp, #16
