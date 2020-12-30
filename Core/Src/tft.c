@@ -1,14 +1,9 @@
-/* Includes ------------------------------------------------------------------*/
 #include "tft.h"
 #include "stm32f0xx_hal.h"
 #include "string.h"
 #include "functions.h"
 #include "user_setting.h"
 #include "stdlib.h"
-
-
-/********************************************** NO CHNAGES AFTER THIS ************************************************/
-
 
 void PIN_LOW (GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin)
 {
@@ -41,21 +36,21 @@ void PIN_OUTPUT (GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin)
 	  HAL_GPIO_Init(GPIOx, &GPIO_InitStruct);
 }
 
- #define RD_ACTIVE  PIN_LOW(RD_PORT, RD_PIN)
- #define RD_IDLE    PIN_HIGH(RD_PORT, RD_PIN)
- #define RD_OUTPUT  PIN_OUTPUT(RD_PORT, RD_PIN)
- #define WR_ACTIVE  PIN_LOW(WR_PORT, WR_PIN)
- #define WR_IDLE    PIN_HIGH(WR_PORT, WR_PIN)
- #define WR_OUTPUT  PIN_OUTPUT(WR_PORT, WR_PIN)
- #define CD_COMMAND PIN_LOW(CD_PORT, CD_PIN)
- #define CD_DATA    PIN_HIGH(CD_PORT, CD_PIN)
- #define CD_OUTPUT  PIN_OUTPUT(CD_PORT, CD_PIN)
- #define CS_ACTIVE  PIN_LOW(CS_PORT, CS_PIN)
- #define CS_IDLE    PIN_HIGH(CS_PORT, CS_PIN)
- #define CS_OUTPUT  PIN_OUTPUT(CS_PORT, CS_PIN)
- #define RESET_ACTIVE  PIN_LOW(RESET_PORT, RESET_PIN)
- #define RESET_IDLE    PIN_HIGH(RESET_PORT, RESET_PIN)
- #define RESET_OUTPUT  PIN_OUTPUT(RESET_PORT, RESET_PIN)
+#define RD_ACTIVE  PIN_LOW(RD_PORT, RD_PIN)
+#define RD_IDLE    PIN_HIGH(RD_PORT, RD_PIN)
+#define RD_OUTPUT  PIN_OUTPUT(RD_PORT, RD_PIN)
+#define WR_ACTIVE  PIN_LOW(WR_PORT, WR_PIN)
+#define WR_IDLE    PIN_HIGH(WR_PORT, WR_PIN)
+#define WR_OUTPUT  PIN_OUTPUT(WR_PORT, WR_PIN)
+#define CD_COMMAND PIN_LOW(CD_PORT, CD_PIN)
+#define CD_DATA    PIN_HIGH(CD_PORT, CD_PIN)
+#define CD_OUTPUT  PIN_OUTPUT(CD_PORT, CD_PIN)
+#define CS_ACTIVE  PIN_LOW(CS_PORT, CS_PIN)
+#define CS_IDLE    PIN_HIGH(CS_PORT, CS_PIN)
+#define CS_OUTPUT  PIN_OUTPUT(CS_PORT, CS_PIN)
+#define RESET_ACTIVE  PIN_LOW(RESET_PORT, RESET_PIN)
+#define RESET_IDLE    PIN_HIGH(RESET_PORT, RESET_PIN)
+#define RESET_OUTPUT  PIN_OUTPUT(RESET_PORT, RESET_PIN)
 
 #define WR_ACTIVE2  {WR_ACTIVE; WR_ACTIVE;}
 #define WR_ACTIVE4  {WR_ACTIVE2; WR_ACTIVE2;}
@@ -80,11 +75,6 @@ void PIN_OUTPUT (GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin)
 #define CTL_INIT()   { RD_OUTPUT; WR_OUTPUT; CD_OUTPUT; CS_OUTPUT; RESET_OUTPUT; }
 #define WriteCmd(x)  { CD_COMMAND; write16(x); CD_DATA; }
 #define WriteData(x) { write16(x); }
-#define SUPPORT_9488_555          //costs +230 bytes, 0.03s / 0.19s
-#define SUPPORT_B509_7793         //R61509, ST7793 +244 bytes
-#define OFFSET_9327 32            //costs about 103 bytes, 0.08s
-
-/************************************************************************************************************/
 
 uint16_t _width    = WIDTH;
 uint16_t _height   = HEIGHT;
@@ -106,16 +96,17 @@ int16_t readGRAM(int16_t x, int16_t y, uint16_t * block, int16_t w, int16_t h);
 
 void setReadDir (void);
 void setWriteDir (void);
+
 static uint8_t done_reset, is8347, is555, is9797;
+
 static uint16_t color565_to_555(uint16_t color) {
     return (color & 0xFFC0) | ((color & 0x1F) << 1) | ((color & 0x01));  //lose Green LSB, extend Blue LSB
 }
-static uint16_t color555_to_565(uint16_t color) {
-    return (color & 0xFFC0) | ((color & 0x0400) >> 5) | ((color & 0x3F) >> 1); //extend Green LSB
-}
+
 static uint8_t color565_to_r(uint16_t color) {
     return ((color & 0xF800) >> 8);  // transform to rrrrrxxx
 }
+
 static uint8_t color565_to_g(uint16_t color) {
     return ((color & 0x07E0) >> 3);  // transform to ggggggxx
 }
@@ -124,6 +115,7 @@ static uint8_t color565_to_b(uint16_t color) {
 }
 
 uint16_t color565(uint8_t r, uint8_t g, uint8_t b) { return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | ((b & 0xF8) >> 3); }
+
 uint16_t readPixel(int16_t x, int16_t y) { uint16_t color; readGRAM(x, y, &color, 1, 1); return color; }
 
 static void pushColors_any(uint16_t cmd, uint8_t * block, int16_t n, uint8_t first, uint8_t flags);
@@ -223,9 +215,7 @@ static void pushColors_any(uint16_t cmd, uint8_t * block, int16_t n, uint8_t fir
             l = (*block++);
 		}
         color = (isbigend) ? (h << 8 | l) :  (l << 8 | h);
-#if defined(SUPPORT_9488_555)
-        if (is555) color = color565_to_555(color);
-#endif
+
         if (is9797) write24(color); else
         write16(color);
     }
@@ -295,21 +285,6 @@ static void init_table(const void *table, int16_t size)
             WriteCmdParamN(cmd, len, dat);
         }
         size -= len + 2;
-    }
-}
-
-static void init_table16(const void *table, int16_t size)
-{
-    uint16_t *p = (uint16_t *) table;
-    while (size > 0) {
-        uint16_t cmd = pgm_read_word(p++);
-        uint16_t d = pgm_read_word(p++);
-        if (cmd == TFTLCD_DELAY)
-            delay(d);
-        else {
-			writecmddata(cmd, d);                      //static function
-        }
-        size -= 2 * sizeof(int16_t);
     }
 }
 
@@ -1528,7 +1503,10 @@ void printstr (uint8_t *str)
 	while (*str) write (*str++);
 }
 
-void setTextWrap(uint8_t w) { wrap = w; }
+void setTextWrap(uint8_t w)
+{
+	wrap = w;
+}
 
 void setTextColor (uint16_t color)
 {
@@ -1540,7 +1518,11 @@ void setTextSize (uint8_t size)
 	textsize = size;
 }
 
-void setCursor(int16_t x, int16_t y) { cursor_x = x; cursor_y = y; }
+void setCursor(int16_t x, int16_t y)
+{
+	cursor_x = x;
+	cursor_y = y;
+}
 
 uint8_t getRotation (void)
 {
