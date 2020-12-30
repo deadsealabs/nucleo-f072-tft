@@ -327,8 +327,7 @@ void tft_init(uint16_t ID)
 
 uint16_t readID(void)
 {
-    uint16_t ret = readReg32(0xD3);
-    return ret;
+    return readReg32(0xD3);
 }
 
 // independent cursor and window registers.   S6D0154, ST7781 increments.  ILI92320/5 do not.

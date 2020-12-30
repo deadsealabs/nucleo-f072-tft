@@ -98,7 +98,7 @@ int main(void)
 
   tft_init (ID);
 
-  setRotation(1);
+  setRotation(3);
 
   /* USER CODE END 2 */
 
@@ -110,22 +110,17 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	fillScreen(BLACK);
-
-	testFillScreen();
-	testLines(CYAN);
-	testFastLines(RED, BLUE);
+//	testFillScreen();
+//	testLines(CYAN);
+//	testFastLines(RED, BLUE);
 	testFilledCircles(10, MAGENTA);
 	testCircles(10, WHITE);
-
-	fillScreen(BLACK);
-
-	setRotation(1);
 
 	printnewtstr(100, RED, &mono12x7bold, 1, "HELLO WORLD");
 
 	scrollup(100);
 
-	invertDisplay(1);
+	//invertDisplay(1);
   }
   /* USER CODE END 3 */
 }
