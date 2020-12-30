@@ -403,7 +403,6 @@ void tft_init(uint16_t ID)
 uint16_t readID(void)
 {
     uint16_t ret = readReg32(0xD3);
-    uint8_t msb = ret >> 8;
     return ret;
 }
 
@@ -1504,9 +1503,7 @@ void printstr (uint8_t *str)
 }
 
 void setTextWrap(uint8_t w)
-{
-	wrap = w;
-}
+{ wrap = w; }
 
 void setTextColor (uint16_t color)
 {
