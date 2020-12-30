@@ -87,7 +87,7 @@ int16_t readGRAM(int16_t x, int16_t y, uint16_t * block, int16_t w, int16_t h);
 void setReadDir (void);
 void setWriteDir (void);
 
-static uint8_t done_reset, is8347, is555, is9797;
+static uint8_t done_reset;
 
 static uint16_t color565_to_555(uint16_t color) {
     return (color & 0xFFC0) | ((color & 0x1F) << 1) | ((color & 0x01));  //lose Green LSB, extend Blue LSB
@@ -206,7 +206,6 @@ static void pushColors_any(uint16_t cmd, uint8_t * block, int16_t n, uint8_t fir
 		}
         color = (isbigend) ? (h << 8 | l) :  (l << 8 | h);
 
-        if (is9797) write24(color); else
         write16(color);
     }
     CS_IDLE;
@@ -237,10 +236,6 @@ static void WriteCmdParamN(uint16_t cmd, int8_t N, uint8_t * block)
     while (N-- > 0) {
         uint8_t u8 = *block++;
         write8(u8);
-        if (N && is8347) {
-            cmd++;
-            WriteCmd(cmd);
-        }
     }
     CS_IDLE;
 }
@@ -402,8 +397,6 @@ int16_t readGRAM(int16_t x, int16_t y, uint16_t * block, int16_t w, int16_t h)
     uint16_t ret, dummy, _MR = _MW;
     int16_t n = w * h, row = 0, col = 0;
     uint8_t r, g, b, tmp;
-    if (!is8347 && (_lcd_capable & MIPI_DCS_REV1)) // HX8347 uses same register
-        _MR = 0x2E;
     if (_lcd_ID == 0x1602) _MR = 0x2E;
     setAddrWindow(x, y, x + w - 1, y + h - 1);
     while (n > 0) {
@@ -510,29 +503,13 @@ void setRotation(uint8_t r)
                val &= ~0x10;   //remove ML
                val |= 0xC0;    //force penguin 180 rotation
            }
-//            val &= (_lcd_ID == 0x1963) ? ~0xC0 : ~0xD0; //MY=0, MX=0 with ML=0 for ILI9481
            goto common_MC;
       }
-       else if (is8347) {
-           _MC = 0x02, _MP = 0x06, _MW = 0x22, _SC = 0x02, _EC = 0x04, _SP = 0x06, _EP = 0x08;
-           if (_lcd_ID == 0x0065) {             //HX8352-B
-               val |= 0x01;    //GS=1
-               if ((val & 0x10)) val ^= 0xD3;  //(ML) flip MY, MX, ML, SS, GS
-               if (r & 1) _MC = 0x82, _MP = 0x80;
-               else _MC = 0x80, _MP = 0x82;
-           }
-           if (_lcd_ID == 0x5252) {             //HX8352-A
-               val |= 0x02;   //VERT_SCROLLON
-               if ((val & 0x10)) val ^= 0xD4;  //(ML) flip MY, MX, SS. GS=1
-           }
-			goto common_BGR;
-       }
      common_MC:
        _MC = 0x2A, _MP = 0x2B, _MW = 0x2C, _SC = 0x2A, _EC = 0x2A, _SP = 0x2B, _EP = 0x2B;
      common_BGR:
-       WriteCmdParamN(is8347 ? 0x16 : 0x36, 1, &val);
+       WriteCmdParamN(0x36, 1, &val);
        _lcd_madctl = val;
-//	    if (_lcd_ID	== 0x1963) WriteCmdParamN(0x13, 0, NULL);   //NORMAL mode
    }
    // cope with 9320 variants
    else {
@@ -580,8 +557,6 @@ void drawPixel(int16_t x, int16_t y, uint16_t color)
    if (x < 0 || y < 0 || x >= width() || y >= height())
        return;
    setAddrWindow(x, y, x, y);
-//    CS_ACTIVE; WriteCmd(_MW); write16(color); CS_IDLE; //-0.01s +98B
-   if (is9797) { CS_ACTIVE; WriteCmd(_MW); write24(color); CS_IDLE;} else
    WriteCmdData(_MW, color);
 }
 
@@ -590,13 +565,6 @@ void setAddrWindow(int16_t x, int16_t y, int16_t x1, int16_t y1)
    if (_lcd_capable & MIPI_DCS_REV1) {
        WriteCmdParam4(_SC, x >> 8, x, x1 >> 8, x1);   //Start column instead of _MC
        WriteCmdParam4(_SP, y >> 8, y, y1 >> 8, y1);   //
-       if (is8347 && _lcd_ID == 0x0065) {             //HX8352-B has separate _MC, _SC
-           uint8_t d[2];
-           d[0] = x >> 8; d[1] = x;
-           WriteCmdParamN(_MC, 2, d);                 //allows !MV_AXIS to work
-           d[0] = y >> 8; d[1] = y;
-           WriteCmdParamN(_MP, 2, d);
-       }
    } else {
        WriteCmdData(_MC, x);
        WriteCmdData(_MP, y);
@@ -617,11 +585,6 @@ void setAddrWindow(int16_t x, int16_t y, int16_t x1, int16_t y1)
 
 void vertScroll(int16_t top, int16_t scrollines, int16_t offset)
 {
-#if defined(OFFSET_9327)
-	if (_lcd_ID == 0x9327) {
-	    if (rotation == 2 || rotation == 3) top += OFFSET_9327;
-    }
-#endif
     int16_t bfa = HEIGHT - top - scrollines;  // bottom fixed area
     int16_t vsp;
     int16_t sea = top;
@@ -639,15 +602,12 @@ void vertScroll(int16_t top, int16_t scrollines, int16_t offset)
         d[3] = scrollines;
         d[4] = bfa >> 8;        //BFA
         d[5] = bfa;
-        WriteCmdParamN(is8347 ? 0x0E : 0x33, 6, d);
+        WriteCmdParamN(0x33, 6, d);
 //        if (offset == 0 && rotation > 1) vsp = top + scrollines;   //make non-valid
 		d[0] = vsp >> 8;        //VSP
         d[1] = vsp;
-        WriteCmdParamN(is8347 ? 0x14 : 0x37, 2, d);
-		if (is8347) {
-		    d[0] = (offset != 0) ? (_lcd_ID == 0x8347 ? 0x02 : 0x08) : 0;
-			WriteCmdParamN(_lcd_ID == 0x8347 ? 0x18 : 0x01, 1, d);  //HX8347-D
-		} else if (offset == 0 && (_lcd_capable & MIPI_DCS_REV1)) {
+        WriteCmdParamN(0x37, 2, d);
+		if (offset == 0 && (_lcd_capable & MIPI_DCS_REV1)) {
 			WriteCmdParamN(0x13, 0, NULL);    //NORMAL i.e. disable scroll
 		}
 		return;
@@ -697,16 +657,7 @@ void invertDisplay(uint8_t i)
     uint8_t val;
     _lcd_rev = ((_lcd_capable & REV_SCREEN) != 0) ^ i;
     if (_lcd_capable & MIPI_DCS_REV1) {
-        if (is8347) {
-            // HX8347D: 0x36 Panel Characteristic. REV_Panel
-            // HX8347A: 0x36 is Display Control 10
-            if (_lcd_ID == 0x8347 || _lcd_ID == 0x5252) // HX8347-A, HX5352-A
-			    val = _lcd_rev ? 6 : 2;       //INVON id bit#2,  NORON=bit#1
-            else val = _lcd_rev ? 8 : 10;     //HX8347-D, G, I: SCROLLON=bit3, INVON=bit1
-            // HX8347: 0x01 Display Mode has diff bit mapping for A, D
-            WriteCmdParamN(0x01, 1, &val);
-        } else
-            WriteCmdParamN(_lcd_rev ? 0x21 : 0x20, 0, NULL);
+		WriteCmdParamN(_lcd_rev ? 0x21 : 0x20, 0, NULL);
         return;
     }
     // cope with 9320 style variants:
